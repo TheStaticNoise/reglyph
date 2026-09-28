@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include "graph.h"
 
-constexpr std::array<uint16_t, 3> ver = {0, 0, 1};
+constexpr std::array<uint16_t, 3> ver = {0, 0, 2};
 
 // todo:
 // 1. Make arg parsing
