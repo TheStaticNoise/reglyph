@@ -6,13 +6,18 @@ a small, GUI based editor, focused on simplicity
 
 ### why?
 
-I noticed that there are little open source editors which will not be overcomplicated, so
+I noticed that there are little open source editors which will not be over-complicated, so
+
+## position
+In between an text editor and an IDE, smaller than VS code, but more than sublime/minimalist text editors
 
 ## status
 
-currently v0.0.2:
+currently v0.0.4:
 - able to parse args/file names
-- able to create a empty window
+- able to create a window
+- able to draw rectangles 
+- primitive layout
 
 ## planned:
 
