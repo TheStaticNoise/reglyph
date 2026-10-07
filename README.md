@@ -38,7 +38,7 @@ make
 run:
 
 ```bash
-./reglyph.out
+./reglyph
 ```
 
 ## license

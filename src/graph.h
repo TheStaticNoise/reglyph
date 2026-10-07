@@ -33,6 +33,9 @@ namespace rg::graph {
       return nullptr;
     }
     return window;
-
+  }
+  static void set_limit(GLFWwindow* window, int minwidth, int minheight, int maxwidth, int maxheight) {
+    glfwSetWindowSizeLimits(window, minwidth, minheight, maxwidth, maxheight);
+    return;
   }
 }
