@@ -1,5 +1,7 @@
 #pragma once
 
+#include "glyph.h"
+#include <stdexcept>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <cstdlib>
@@ -13,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <optional>
+#include "vecx.h"
 
 #define RGrend_FULL 0
 #define RGrend_CRASH -1
@@ -36,81 +39,43 @@ const char* RG_RECT_FRAGMENTS =
 "void main() {\n"
 "FragColor = col;\n"
 "}";
-
-
+const char* RG_TEX_VERTEX = 
+"#version 330 core\n"
+"layout (location = 0) in vec2 position;\n"
+"layout (location = 1) in vec2 texCoord;\n"
+"out vec2 uv;\n"
+"void main() {"
+"gl_Position = vec4(position, 0.0, 1.0);"
+"uv = texCoord;"
+"}";
+const char* RG_TEX_FRAGMENT =
+"#version 330 core\n"
+"in vec2 uv;\n"
+"out vec4 color;\n"
+"uniform sampler2D atlas;\n"
+"uniform vec4 filter;\n"
+"void main() {\n"
+"float alpha = texture(atlas, uv).r;\n"
+"color = vec4(filter.rgb, filter.a * alpha);\n"
+"}";
 
 namespace rg::rend {
-  template <typename T>
-    struct vec2 {
-      T c[2]{};
-      vec2() = default;   
-      vec2(T a, T b) : c{a, b} {}
-      T& operator[] (uint64_t i) {
-        if (i > 1) {
-          std::cerr << "[rg.rend] bad vec2 access! dump: " << c[0] << " : " << c[1] << "! index: " << i << "\n[regraph]> Aborting...\n";
-          std::abort();
-        }
-        return c[i];
-      }
-      const T& operator[](uint64_t i) const {
-        if (i > 1) {
-          std::cerr << "[rg.rend] bad vec2 access! index: " << i << '\n';
-          std::abort();
-        }
-        return c[i];
-      }
-
-      vec2 operator+(const vec2& o) const {
-        return vec2(c[0] + o[0], c[1] + o[1]);
-      }
-      vec2& operator+=(vec2 o) {
-        c[0] += o[0];
-        c[1] += o[1];
-        return *this;
-      }
-    };
-  template <typename T>
-    struct vec4 {
-      T internal_list[4]{};
-      vec4() = default;   
-      vec4(T a, T b, T c, T d) {internal_list[0] = a; internal_list[1] = b; internal_list[2] = c; internal_list[3] = d;}
-      T& operator[] (uint64_t i) {
-        if (i > 3) {
-          std::cerr << "[rg.rend] bad vec4 access! dump: " << internal_list[0] << " : " << internal_list[1] << " : " << internal_list[2] << ":" << internal_list[3] << "! index: " << i << "\n[regraph]> Aborting...\n";
-          std::abort();
-        }
-        return internal_list[i];
-      }
-      vec4 operator+(vec4& o) {
-        return vec4(internal_list[0] + o[0], internal_list[1] + o[1], internal_list[2] + o[2], internal_list[3] + o[3]);
-      }
-      const T& operator[](uint64_t i) const {
-        if (i > 3) {
-          std::cerr << "[rg.rend] bad vec4 access! index: " << i << '\n';
-          std::abort();
-        }
-        return internal_list[i];
-      }
-      vec4& operator+=(vec4& o) {
-        internal_list[0] += o[0];
-        internal_list[1] += o[1];
-        internal_list[2] += o[2];
-        internal_list[3] += o[3];
-        return *this;
-      }
-    };
   struct rect {
     vec2<int64_t> pos = {0, 0};
     vec2<int64_t> size = {0, 0};
     vec4<float>   color = {0.0f, 0.0f, 0.0f, 0.0f};
   };
   struct text {
+    vec2<int64_t> pos;
     std::string text;
     int64_t fontid;
   };
   class rend_obj {
     private: 
-      GLint rectsh = 0, textsh = -1;
+      GLint rectsh = -1, textsh = -1;
+      GLuint rect_vao, rect_vbo;
+      GLuint char_vao, char_vbo;
+
       struct shader_pack {
         GLuint id = 0;
         GLint status = 0;
@@ -181,9 +146,42 @@ namespace rg::rend {
         glDeleteShader(vertex.id);
         glDeleteShader(fragment.id);
         rectsh = program;
+        // texture shader
+        shader_pack tv = create_shader(RG_TEX_VERTEX, GL_VERTEX_SHADER);
+        shader_pack tf = create_shader(RG_TEX_FRAGMENT, GL_FRAGMENT_SHADER);
+        // check status + glGetShaderInfoLog on both, like the rect path
+        GLuint tp = glCreateProgram();
+        glAttachShader(tp, tv.id);
+        glAttachShader(tp, tf.id);
+        glLinkProgram(tp);
+        // check GL_LINK_STATUS
+        glDeleteShader(tv.id);
+        glDeleteShader(tf.id);
+        textsh = tp;
+        glGenVertexArrays(1, &char_vao);
+        glGenBuffers(1, &char_vbo);
+        glBindVertexArray(char_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, char_vbo);
+        glVertexAttribPointer(
+            0,                  // Shader location 0
+            2,                  // Read 2 floats
+            GL_FLOAT,
+            GL_FALSE,
+            4 * sizeof(float),  // Skip to next vertex
+            (void*)0            // Start at x
+            );
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(
+            1,                         // Shader location 1
+            2,                         // Read 2 floats
+            GL_FLOAT,
+            GL_FALSE,
+            4 * sizeof(float),         // Same vertex stride
+            (void*)(2 * sizeof(float)) // Skip x and y
+            );
+        glEnableVertexAttribArray(1);
       }
     private:
-      GLuint rect_vao, rect_vbo;
       std::array<std::vector<std::variant<rect, text>>, RG_REND_Z_ORDERS> objects;
       vec2<float> ndc(vec2<int64_t> pos, vec2<int64_t> size) {
         return {(static_cast<float>(pos[0]) / size[0]) * 2.0f - 1.0f, 1.0f - (static_cast<float>(pos[1]) / size[1]) * 2.0f};
@@ -219,10 +217,19 @@ namespace rg::rend {
       inline void schedule_rect(rect rect_obj, int64_t layer) {
         objects[layer].push_back(rect_obj);
       }
+      inline void schedule_text(text textobj, int64_t layer) {
+        objects[layer].push_back(textobj);
+      }
       inline void render() {
         struct vertex {
           float x, y;
           float r, g, b, a;
+        };
+        auto uv = [](rg::rend::vec2<int64_t> pos, rg::rend::vec2<int64_t> size) {
+          return rg::rend::vec2<float>{
+            (float)pos[0] / (float)size[0],
+              (float)pos[1] / (float)size[1]
+          };
         };
 
         // Avoid division by zero in ndc().
@@ -245,7 +252,7 @@ namespace rg::rend {
               ++rect_count;
             } else if (std::holds_alternative<text>(object)) {
               texts.push_back(std::get<text>(object));
-            }
+            } // otherwise ignored;
           }
 
           vertices_d.reserve(rect_count * 6);
@@ -323,23 +330,110 @@ namespace rg::rend {
                 static_cast<GLsizei>(vertices_d.size())
                 );
           }
-        }
+          // draw text
+          struct text_vertex {
+            float x, y, u, v;
+          };
+          std::vector<text_vertex> vertices;
+          uint64_t total_chars = 0;
+          // preprocessing
+          for (auto& text : texts) {
+            if (text.fontid >= fonts.size()) throw std::runtime_error("text err Out of ID Range");
+            total_chars += text.text.size();
+          }
+          // processing
+          vertices.reserve(total_chars * 6);
+          for (auto& text : texts) {
+            int64_t textpos = 0;
+            for (auto& ch : text.text) {
+              auto glyph = fonts[text.fontid].get_glyph(ch);
+              if (!glyph.has_value()) continue;
+              auto glyphd = glyph.value();
+              rg::rend::vec2<int64_t> mask = {textpos, 0};
+              auto a = ndc(text.pos + mask, screensize);
+              auto b = ndc({text.pos[0] + glyphd.size[0] + mask[0], text.pos[1]}, screensize);
+              auto c = ndc({text.pos[0] + textpos, text.pos[1] + glyphd.size[1]}, screensize);
+              auto d = ndc(text.pos + glyphd.size + mask, screensize);
+              /*a[0], a[1], color[0], color[1], color[2], color[3], 
+                b[0], b[1], color[0], color[1], color[2], color[3],
+                c[0], c[1], color[0], color[1], color[2], color[3],
+              // second
+              b[0], b[1], color[0], color[1], color[2], color[3], 
+              d[0], d[1], color[0], color[1], color[2], color[3], 
+              c[0], c[1], color[0], color[1], color[2], color[3], */
+              /* format: x y u v */
+              auto asize = fonts[text.fontid].get_atlas_size();
+              auto aa = uv(glyphd.atlas_pos, asize);
+              auto ab = uv({glyphd.atlas_pos[0] + glyphd.size[0], glyphd.atlas_pos[1]}, asize);
+              auto ac = uv({glyphd.atlas_pos[0], glyphd.atlas_pos[1] + glyphd.size[1]}, asize);
+              auto ad = uv(glyphd.atlas_pos + glyphd.size, asize);
+              vertices.push_back({a[0], a[1], aa[0], aa[1]});
+              vertices.push_back({b[0], b[1], ab[0], ab[1]});
+              vertices.push_back({c[0], c[1], ac[0], ac[1]});
+              vertices.push_back({b[0], b[1], ab[0], ab[1]});
+              vertices.push_back({d[0], d[1], ad[0], ad[1]});
+              vertices.push_back({c[0], c[1], ac[0], ac[1]});
+              textpos+=glyphd.advance[0] >> 6;
+            }
+            // submit
+            if (!vertices.empty()) {
+              glUseProgram(textsh);
+              glUniform4f(glGetUniformLocation(textsh, "filter"), 1.0, 1.0, 1.0, 1.0);
+              glActiveTexture(GL_TEXTURE0);
+              glBindTexture(GL_TEXTURE_2D, fonts[text.fontid].get_texture());
 
-        glBindVertexArray(0);
-        glUseProgram(0);
+              glBindVertexArray(char_vao);
+              glBindBuffer(GL_ARRAY_BUFFER, char_vbo);
+              glBufferData(
+                  GL_ARRAY_BUFFER,
+                  static_cast<GLsizeiptr>(
+                    vertices.size() * sizeof(text_vertex)
+                    ),
+                  vertices.data(),
+                  GL_DYNAMIC_DRAW
+                  );
+
+              glDrawArrays(
+                  GL_TRIANGLES,
+                  0,
+                  static_cast<GLsizei>(vertices.size())
+                  );
+            }
+            glBindVertexArray(0);
+            glUseProgram(0);
+          }
+
+        }
       }
+      std::vector<rg::glyph::glyphManager> fonts;
     public:
       inline void set_screensize(vec2<int64_t> screen_size) {
         screensize = screen_size;
       }
+      inline void clear_from(uint64_t inclusive_layer) {
+        for (int64_t i = inclusive_layer; i < RG_REND_Z_ORDERS; i++) {
+          objects[i].clear();
+        }
+      }
       inline void add_rect(vec2<int64_t> pos, vec2<int64_t> size, vec4<float> color, int64_t layer) {
         schedule_rect({pos, size, color}, layer);
+      }
+      inline void add_text(vec2<int64_t> pos, uint64_t id, std::string text, uint64_t layer) {
+        schedule_text({pos, text, id}, layer);
       }
       inline void submit() {
         render();
       }
       inline void clear() {
         for (auto& l : objects) l.clear();
+      }
+      inline uint64_t load_fontObj(const char* path, uint64_t fontsize) {
+        try {
+          fonts.emplace_back(rg::glyph::glyphManager(path, fontsize));
+          return fonts.size()-1;
+        } catch (std::exception& e) {
+          throw e; // cascade
+        }
       }
 
   };

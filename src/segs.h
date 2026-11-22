@@ -1,8 +1,10 @@
 #pragma once
 #include "rend.h"
 #include <algorithm>
+#include <cstring>
 #include <optional>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 #include <iostream>
 #include <cstdint>
@@ -20,6 +22,10 @@ static_assert(RG_SEGS_LAYERS <= RG_REND_Z_ORDERS,
 namespace rg {
   namespace segs {
     enum class direction_t {LEFT, RIGHT, UP, DOWN}; // Non composable!!! DO NOT TRY TO | (BITWISE OR) IT
+    struct reference {
+      uint64_t layer, id;
+    };
+
     class splitter {
       private:
         rend::vec2<int64_t> rg__screen_size = {0, 0};
@@ -35,7 +41,8 @@ namespace rg {
           bool invalidate = false;  // if true then not allow drawing/export until first split call or scrap.
         };
         std::array<layer_header, RG_SEGS_LAYERS> layers;
-
+        std::unordered_map<std::string, reference> ids;
+        uint64_t gindx = 0;
       public:
         inline void scrap() {
           for (layer_header& header : layers) {
@@ -44,9 +51,24 @@ namespace rg {
             header.space.begin = {0, 0};
             header.space.size = rg__screen_size;
           }
+          ids.clear();
+          gindx = 0;
         }
+        inline std::optional<reference> get_ref(std::string name) {
+          auto e = ids.find(name);
+          if (e != ids.end()) {
+            return e->second;
+          }
+          return std::nullopt;
+        }
+        inline std::optional<rg::rend::rect> get_info(reference ref) {
+          if (ref.id < layers[ref.layer].rects.size()) {
+            return layers[ref.layer].rects.at(ref.id);
+          }
+          return std::nullopt;
+        } 
 
-        inline int split(direction_t direction, uint64_t layer, double part, rend::vec4<float> color) {
+        inline int split(direction_t direction, uint64_t layer, double part, rend::vec4<float> color, std::optional<std::string> strid) {
           if (layer >= RG_SEGS_LAYERS) {
             return -1;
           }
@@ -132,6 +154,9 @@ namespace rg {
               break;
             default:
               return -3;
+          }
+          if (strid.has_value()) {
+            ids.emplace(strid.value(), reference{layer, head.rects.size()-1});
           }
           return ret;
         }

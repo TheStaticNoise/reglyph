@@ -13,6 +13,8 @@
 
 #include "rend.h"
 #include "segs.h"
+#include "glyph.h"
+#include "vecx.h"
 #include <freetype2/ft2build.h>
 
 #define WINDOW_HEIGHT 400
@@ -20,6 +22,8 @@
 
 constexpr std::array<uint16_t, 3> ver = {0, 0, 4};
 
+bool needs_update = false;
+int add_char = 0;
 
 
 const char* SOURCE_vertex_ = 
@@ -215,26 +219,38 @@ int main(int argc, char** argv) {
     double part;
     rg::segs::direction_t direction;
     rg::rend::vec4<float> color;
+    std::optional<std::string> label = std::nullopt;
   }; // for segment rendering (yea, the name is bar but its for segments)
   std::vector<bar_data> ldata; // layout data
 
   // std settings
-  ldata.push_back({true, 0.025, rg::segs::direction_t::UP, {0.1275f, 0.1628f, 0.1786f, 1.0f}}); // options bar
-  ldata.push_back({true, 0.05, rg::segs::direction_t::UP, {0.1255f, 0.1608f, 0.1686f, 1.0f}}); // top bar
-  ldata.push_back({true, 0.2, rg::segs::direction_t::LEFT, {0.1059, 0.1059, 0.1059, 1.0}}); // sidebar
-  ldata.push_back({true, 0.05, rg::segs::direction_t::UP, {0.898, 0.894, 0.886, 1.0}}); // statbar
-  ldata.push_back({true, 1.0, rg::segs::direction_t::RIGHT, {0.1843, 0.3098, 0.3098, 1.0}}); // mainseg, any direction, either way consumes everything left.
+  ldata.push_back({true, 0.025, rg::segs::direction_t::UP, {0.1275f, 0.1628f, 0.1786f, 1.0f}, "options"}); // options bar
+  ldata.push_back({true, 0.05, rg::segs::direction_t::UP, {0.1255f, 0.1608f, 0.1686f, 1.0f}, "topbar"}); // top bar
+  ldata.push_back({true, 0.2, rg::segs::direction_t::LEFT, {0.1059, 0.1059, 0.1059, 1.0}, "sidebar"}); // sidebar
+  ldata.push_back({true, 0.05, rg::segs::direction_t::UP, {0.898, 0.894, 0.886, 1.0}, "statbar"}); // statbar
+  ldata.push_back({true, 1.0, rg::segs::direction_t::RIGHT, {0.1843, 0.3098, 0.3098, 1.0}, "editor"}); // mainseg, any direction, either way consumes everything left.
 
   // preemptive Viewport size setting to fix a bug when gl viewport is smaller than window size until resize
   glViewport(0, 0, x, y);
 
   // resize callback
   glfwSetFramebufferSizeCallback(window, [](GLFWwindow* win, int width, int height) {
-      layout_dirty = true;
-      glViewport(0, 0, width, height);
-      });
-
+    layout_dirty = true;
+    glViewport(0, 0, width, height);
+  });
+  try {
+    render.load_fontObj("fonts/JetBrainsMono-SemiBold.ttf", 16);
+  } catch (std::exception& e){
+    std::cerr << "font load err!" << e.what() << "\n";
+    abort();
+  }
+  glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codepoint) -> void { 
+    needs_update = true;
+    add_char = codepoint;
+    
+  });
   glfwSwapBuffers(window);
+  std::string e;
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
 
@@ -246,12 +262,19 @@ int main(int argc, char** argv) {
       split.scrap();
       for (auto& segment : ldata) {
         if (segment.active)
-          split.split(segment.direction, 0, segment.part, segment.color);
+          split.split(segment.direction, 0, segment.part, segment.color, segment.label);
       }
       split.rend_add(render, 0);
+
       layout_dirty = false;
     }
-
+    if (needs_update) {
+      e += add_char;
+      render.clear_from(1);
+      auto editor = split.get_info(split.get_ref("editor").value());
+      render.add_text({editor->pos[0] + (editor->pos[0] * 15) / 10, editor->pos[1] + (editor->pos[1] * 15) / 10}, 0, e, 1);
+      needs_update = false;
+    }
     glClear(GL_COLOR_BUFFER_BIT);
     render.submit();
     glfwSwapBuffers(window);
