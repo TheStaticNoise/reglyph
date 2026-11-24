@@ -13,15 +13,16 @@ In between a text editor and an IDE, smaller than VS Code, but more than sublime
 
 ## status
 
-currently v0.0.4:
+currently v0.0.6:
 - able to parse args/file names
 - able to create a window
 - able to draw rectangles 
 - primitive layout
+- Text!
 
 ## planned:
 
-- graphics
+- better graphics
 - file tree
 - text editor
 - simple extension platform
