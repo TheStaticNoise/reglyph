@@ -16,11 +16,11 @@
 #include "glyph.h"
 #include "vecx.h"
 #include <freetype2/ft2build.h>
-
+#include "editor.h"
 #define WINDOW_HEIGHT 400
 #define WINDOW_WIDTH 600
 
-constexpr std::array<uint16_t, 3> ver = {0, 0, 4};
+constexpr std::array<uint16_t, 3> ver = {0, 0, 6};
 
 bool needs_update = false;
 int add_char = 0;
@@ -143,14 +143,10 @@ int main(int argc, char** argv) {
     std::abort();
   };
   std::cerr << "[reglyph]! booting up reglyph... [ver " << ver[0] << "." << ver[1] << "." << ver[2] << "]\n[reglyph]> Hello, reglyph!\n";
-
   std::cerr << "[reglyph]! [MIT licensed!]\n[reglyph]! find out more about project: [github] static_noise/reglyph!" << std::endl;
-
   std::cerr << "[reglyph]! boot up stage 1... [creating arg vector!]" << std::flush;
   std::vector<std::string> args;
-
   std::string exec_name=std::string(argv[0]);
-
   args.reserve(argc);
 
   for (uint64_t i = 1; i < argc; i++) {
@@ -164,6 +160,19 @@ int main(int argc, char** argv) {
     for (uint64_t i = 0; i < data_args.files.size(); i++) {
       std::cerr << "[reglyph]! file passed: \"" << data_args.files[i] << "\"!\n";
     }
+  }
+  if (data_args.bitmask & getbit(arg_bit::help)) {
+    std::cerr 
+      << "[reglyph]! Help: \n" 
+      << "[reglyph]> -d/--debug: debug\n"
+      << "[reglyph]> -h/--help: this message\n"
+      << "[reglyph]> -v/--version: version\n"
+      << "[reglyph]> -k/--kill-after-write: exit after writing to a file (todo: implement)\n";
+    return 0;
+  } 
+  if (data_args.bitmask & getbit(arg_bit::version)) {
+    std::cerr << "[reglyph]> [ver " << ver[0] << "." << ver[1] << "." << ver[2] << "]\n";
+    return 0;
   }
   std::cerr << "[reglyph]! boot up stage 2... [creating window!]" << std::flush;
 
@@ -224,11 +233,12 @@ int main(int argc, char** argv) {
   std::vector<bar_data> ldata; // layout data
 
   // std settings
-  ldata.push_back({true, 0.025, rg::segs::direction_t::UP, {0.1275f, 0.1628f, 0.1786f, 1.0f}, "options"}); // options bar
-  ldata.push_back({true, 0.05, rg::segs::direction_t::UP, {0.1255f, 0.1608f, 0.1686f, 1.0f}, "topbar"}); // top bar
-  ldata.push_back({true, 0.2, rg::segs::direction_t::LEFT, {0.1059, 0.1059, 0.1059, 1.0}, "sidebar"}); // sidebar
-  ldata.push_back({true, 0.05, rg::segs::direction_t::UP, {0.898, 0.894, 0.886, 1.0}, "statbar"}); // statbar
-  ldata.push_back({true, 1.0, rg::segs::direction_t::RIGHT, {0.1843, 0.3098, 0.3098, 1.0}, "editor"}); // mainseg, any direction, either way consumes everything left.
+  ldata.push_back({true, 0.025, rg::segs::direction_t::UP,    {0.2196f, 0.2824f, 0.2824f, 1.0f}, "options"}); // options bar #384848
+  ldata.push_back({true, 0.05,  rg::segs::direction_t::UP,    {0.2196f, 0.2824f, 0.2824f, 1.0f}, "topbar"});  // top bar     #384848
+  ldata.push_back({true, 0.2,   rg::segs::direction_t::LEFT,  {0.1647f, 0.2118f, 0.2118f, 1.0f}, "sidebar"}); // sidebar     #2a3636
+  ldata.push_back({true, 0.95,  rg::segs::direction_t::UP,    {0.1020f, 0.1373f, 0.1373f, 1.0f}, "editor"});  // mainseg     #1a2323
+  ldata.push_back({true, 1,     rg::segs::direction_t::RIGHT, {0.2196f, 0.2824f, 0.2824f, 1.0f}, "statbar"}); // statbar     #384848, any direction, either way consumes everything left.
+
 
   // preemptive Viewport size setting to fix a bug when gl viewport is smaller than window size until resize
   glViewport(0, 0, x, y);
@@ -236,6 +246,7 @@ int main(int argc, char** argv) {
   // resize callback
   glfwSetFramebufferSizeCallback(window, [](GLFWwindow* win, int width, int height) {
     layout_dirty = true;
+    needs_update = true;
     glViewport(0, 0, width, height);
   });
   try {
@@ -246,9 +257,9 @@ int main(int argc, char** argv) {
   }
   glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codepoint) -> void { 
     needs_update = true;
-    add_char = codepoint;
-    
+    add_char = codepoint; 
   });
+  
   glfwSwapBuffers(window);
   std::string e;
   while (!glfwWindowShouldClose(window)) {
@@ -269,7 +280,10 @@ int main(int argc, char** argv) {
       layout_dirty = false;
     }
     if (needs_update) {
-      e += add_char;
+      if (add_char) {
+        e += add_char;
+        add_char = 0;
+      }
       render.clear_from(1);
       auto editor = split.get_info(split.get_ref("editor").value());
       render.add_text({editor->pos[0] + (editor->pos[0] * 15) / 10, editor->pos[1] + (editor->pos[1] * 15) / 10}, 0, e, 1);

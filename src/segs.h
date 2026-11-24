@@ -124,7 +124,7 @@ namespace rg {
 
             space.begin[0] += res;
             space.size[0] -= res;
-
+            ret = 0;
           };
           auto right_action = [&]() {
             // -right action
@@ -139,6 +139,7 @@ namespace rg {
                 });
 
             space.size[0] -= res;
+            ret = 0;
           };
 
           switch (direction) {
