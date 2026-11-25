@@ -14,6 +14,7 @@
 #include <ft2build.h>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <sys/types.h>
 #include <vector>
 #include <stdexcept>
@@ -99,7 +100,7 @@ namespace rg::uiUtilz {
         while (!editor.is_eof() && y + line_h <= bottom) {
           std::string text  = editor.readline();
           if (!text.empty() && text.back() == '\n') text.pop_back();
-          std::string label = std::format("[{}]", line_no);
+          std::string label = "[" + std::to_string(line_no) + "]";
           Render.add_text(
             {parent->pos[0] + gutter - (int64_t)(label.size() + 1) * fw, y},
             editor_fontid, label, editor_layer);
@@ -107,7 +108,7 @@ namespace rg::uiUtilz {
           y += line_h;
           line_no++;
         }
-        std::string label = std::format("[{}]", line_no);
+        std::string label = "[" + std::to_string(line_no) + "]";
         Render.add_text(
           {parent->pos[0] + gutter - (int64_t)(label.size() + 1) * fw, y},
           editor_fontid, label, editor_layer);
