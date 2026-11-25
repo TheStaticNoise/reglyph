@@ -33,15 +33,22 @@ currently v0.0.6:
 - word wrap
 - save and load
 
-## reqs
+## run
+
+### download:
+go to releases, download .tar.gz for your distro, extract, run
+
+### compile
+#### reqs
 
 requires:
 - c++ compiler (compliant to ISO C++ 20 and ISO C++ 20 stdlib)
 - glfw
 - opengl
 - ft2 (freetype2)
-- harfbuzz (soon will be used)
 
+
+#### compile (actually)
 ```bash 
 git clone https://github.com/TheStaticNoise/reglyph.git
 cd reglyph/src
@@ -49,7 +56,7 @@ make
 ```
 
 run:
-from src/
+from wherever reglyph file is
 ```bash
 ./reglyph
 ```

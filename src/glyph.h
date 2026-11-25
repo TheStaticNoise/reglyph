@@ -15,8 +15,6 @@
 #include <fstream>
 #include <unordered_map>
 #include "rend.h"
-#include <harfbuzz/hb.h>
-#include <harfbuzz/hb-ft.h>
 #include FT_FREETYPE_H
 
 
