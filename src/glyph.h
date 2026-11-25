@@ -148,5 +148,8 @@ namespace rg::glyph {
       inline int64_t get_adv() {
         return adv;
       }
+      inline int64_t get_height() {
+        return ascent + descent;
+      }
   };
 }

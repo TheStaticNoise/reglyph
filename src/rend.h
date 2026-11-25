@@ -346,6 +346,7 @@ namespace rg::rend {
           for (auto& text : texts) {
             int64_t textpos = 0;
             for (auto& ch : text.text) {
+              if ((unsigned char)ch < 32) continue;
               auto glyph = fonts[text.fontid].get_glyph(ch);
               if (!glyph.has_value()) continue;
               auto glyphd = glyph.value();
@@ -418,7 +419,7 @@ namespace rg::rend {
       inline void add_rect(vec2<int64_t> pos, vec2<int64_t> size, vec4<float> color, int64_t layer) {
         schedule_rect({pos, size, color}, layer);
       }
-      inline void add_text(vec2<int64_t> pos, uint64_t id, std::string text, uint64_t layer) {
+      inline void add_text(vec2<int64_t> pos, int64_t id, std::string text, uint64_t layer) {
         schedule_text({pos, text, id}, layer);
       }
       inline void submit() {
@@ -435,6 +436,11 @@ namespace rg::rend {
           throw e; // cascade
         }
       }
-
+      inline int64_t get_fontwidth(int64_t id) {
+        return fonts[id].get_adv();
+      }
+      inline int64_t get_fontheight(int64_t id) {
+        return fonts[id].get_height();
+      }
   };
 }

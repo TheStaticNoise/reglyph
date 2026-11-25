@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <optional>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -16,32 +17,16 @@
 #include "glyph.h"
 #include "vecx.h"
 #include <freetype2/ft2build.h>
+#include "uiUtilz.h"
 #include "editor.h"
 #define WINDOW_HEIGHT 400
 #define WINDOW_WIDTH 600
 
 constexpr std::array<uint16_t, 3> ver = {0, 0, 6};
 
+std::string pending_input;
+bool deletechar = true;
 bool needs_update = false;
-int add_char = 0;
-
-
-const char* SOURCE_vertex_ = 
-"#version 330 core\n"
-"layout (location = 0) in vec2 posData;\n"
-"layout (location = 1) in vec4 Coldata;\n"
-"out vec4 col;\n"
-"void main() {\n"
-"gl_Position=vec4(posData, 0.0, 1.0);\n"
-"col = Coldata;\n"
-"}";
-const char* SOURCE_fragment_ = 
-"#version 330 core\n"
-"in vec4 col;\n"
-"out vec4 FragColor;\n"
-"void main() {\n"
-"FragColor = col;\n"
-"}";
 
 bool layout_dirty = true;
 
@@ -137,6 +122,8 @@ args_proc bitmask_argp(std::vector<std::string> args) {
   return ret;
 }
 
+bool backspace = false;
+
 int main(int argc, char** argv) {
   auto abort = []() {
     std::cerr << "[reglyph]> Aborting...\n";
@@ -208,7 +195,6 @@ int main(int argc, char** argv) {
     std::cerr << "[FAIL]\n[reglyph]! GLAD init failed!\n";
     abort();
   }
-  // std::cerr << "[OK!]\nboot up stage 4... [compile shaders] "; 
 
 
   std::cerr << "[OK!]\n";
@@ -223,75 +209,73 @@ int main(int argc, char** argv) {
   int x, y; // state variables
 
   glfwGetWindowSize(window, &x, &y); // init
-  struct bar_data {
-    bool active;
-    double part;
-    rg::segs::direction_t direction;
-    rg::rend::vec4<float> color;
-    std::optional<std::string> label = std::nullopt;
-  }; // for segment rendering (yea, the name is bar but its for segments)
-  std::vector<bar_data> ldata; // layout data
-
-  // std settings
-  ldata.push_back({true, 0.025, rg::segs::direction_t::UP,    {0.2196f, 0.2824f, 0.2824f, 1.0f}, "options"}); // options bar #384848
-  ldata.push_back({true, 0.05,  rg::segs::direction_t::UP,    {0.2196f, 0.2824f, 0.2824f, 1.0f}, "topbar"});  // top bar     #384848
-  ldata.push_back({true, 0.2,   rg::segs::direction_t::LEFT,  {0.1647f, 0.2118f, 0.2118f, 1.0f}, "sidebar"}); // sidebar     #2a3636
-  ldata.push_back({true, 0.95,  rg::segs::direction_t::UP,    {0.1020f, 0.1373f, 0.1373f, 1.0f}, "editor"});  // mainseg     #1a2323
-  ldata.push_back({true, 1,     rg::segs::direction_t::RIGHT, {0.2196f, 0.2824f, 0.2824f, 1.0f}, "statbar"}); // statbar     #384848, any direction, either way consumes everything left.
-
 
   // preemptive Viewport size setting to fix a bug when gl viewport is smaller than window size until resize
   glViewport(0, 0, x, y);
 
   // resize callback
   glfwSetFramebufferSizeCallback(window, [](GLFWwindow* win, int width, int height) {
-    layout_dirty = true;
-    needs_update = true;
-    glViewport(0, 0, width, height);
-  });
+      layout_dirty = true;
+      needs_update = true;
+      glViewport(0, 0, width, height);
+      });
   try {
     render.load_fontObj("fonts/JetBrainsMono-SemiBold.ttf", 16);
   } catch (std::exception& e){
     std::cerr << "font load err!" << e.what() << "\n";
     abort();
   }
-  glfwSetCharCallback(window, [](GLFWwindow* window, unsigned int codepoint) -> void { 
-    needs_update = true;
-    add_char = codepoint; 
-  });
-  
-  glfwSwapBuffers(window);
-  std::string e;
-  while (!glfwWindowShouldClose(window)) {
-    glfwPollEvents();
 
+  rg::uiUtilz::Instance manager(render, (int64_t) 0, (int64_t) 0, rg::rend::vec2<int64_t>(x, y));
+  // std settings
+  manager.add_element(0, {true, 0.025, rg::segs::direction_t::UP,    {0.2196f, 0.2824f, 0.2824f, 1.0f}, "options"}); // options bar #384848
+  manager.add_element(0, {true, 0.05,  rg::segs::direction_t::UP,    {0.2196f, 0.2824f, 0.2824f, 1.0f}, "topbar"});  // top bar     #384848
+  manager.add_element(0, {true, 0.2,   rg::segs::direction_t::LEFT,  {0.1647f, 0.2118f, 0.2118f, 1.0f}, "sidebar"}); // sidebar     #2a3636
+  manager.add_element(0, {true, 0.05, rg::segs::direction_t::UP,     {0.1722f, 0.2137f, 0.2020f, 1.0f}, "tabs"}); // editor (whatever color it is, idk)
+  manager.add_element(0, {true, 0.95,  rg::segs::direction_t::UP,    {0.1020f, 0.1373f, 0.1373f, 1.0f}, "editor"});  // mainseg     #1a2323
+  manager.add_element(0, {true, 1,     rg::segs::direction_t::RIGHT, {0.2196f, 0.2824f, 0.2824f, 1.0f}, "statbar"}); // statbar     #384848, any direction, either way consumes everything left.
+
+  glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int w, int h) {
+      layout_dirty = true;
+      glViewport(0, 0, w, h);
+      });
+  glfwSetCharCallback(window, [](GLFWwindow*, unsigned int cp) {
+      if (cp >= 32 && cp < 127) { pending_input.push_back((char)cp); layout_dirty = true; }
+      });
+  // delete: bool deletechar = true;
+
+glfwSetKeyCallback(window, [](GLFWwindow*, int key, int, int action, int) {
+  if (action != GLFW_PRESS && action != GLFW_REPEAT) return;
+  if (key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER) {
+    pending_input.push_back('\n');
+    layout_dirty = true;
+  } else if (key == GLFW_KEY_BACKSPACE) {
+    pending_input.push_back('\b');
+    layout_dirty = true;
+  }
+});
+
+  manager.set_editorlabel("editor");
+  manager.editor.insert("hello, ", true);   // optional, delete if you don't want the starter text
+                                            // delete: std::cout << manager.editor.readline();
+
+  while (!glfwWindowShouldClose(window)) {
+if (!pending_input.empty()) {
+  for (char c : pending_input) {
+    if (c == '\b') manager.editor.backspace();
+    else           manager.editor.insert(std::string(1, c), true);
+  }
+  pending_input.clear();
+}
     if (layout_dirty) {
       glfwGetWindowSize(window, &x, &y);
-      render.set_screensize({x, y});
-      render.clear();
-      split.screensize({x, y});
-      split.scrap();
-      for (auto& segment : ldata) {
-        if (segment.active)
-          split.split(segment.direction, 0, segment.part, segment.color, segment.label);
-      }
-      split.rend_add(render, 0);
-
+      manager.set_screensize({x, y});
+      glClear(GL_COLOR_BUFFER_BIT);
+      manager.publish();
+      glfwSwapBuffers(window);
       layout_dirty = false;
     }
-    if (needs_update) {
-      if (add_char) {
-        e += add_char;
-        add_char = 0;
-      }
-      render.clear_from(1);
-      auto editor = split.get_info(split.get_ref("editor").value());
-      render.add_text({editor->pos[0] + (editor->pos[0] * 15) / 10, editor->pos[1] + (editor->pos[1] * 15) / 10}, 0, e, 1);
-      needs_update = false;
-    }
-    glClear(GL_COLOR_BUFFER_BIT);
-    render.submit();
-    glfwSwapBuffers(window);
+    glfwWaitEvents();
   }
   std::cerr << "[reglyph]! Bye!\n" << std::flush;
   glfwDestroyWindow(window);

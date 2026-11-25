@@ -1,13 +1,14 @@
 # wtf is this? idk, is it portable? Yes
+# 
 
-.PHONY: all release clean
+.PHONY: all debug release build
 
 CXX      ?= g++
 CC       ?= gcc
 PKG_CONFIG ?= pkg-config
 
 ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-BUILD := $(ROOT)build
+BUILD := $(ROOT)
 
 GLAD_SRC := $(ROOT)../external/glad/src/gl.c
 GLAD_INC := $(ROOT)../external/glad/include
@@ -20,23 +21,20 @@ CXXFLAGS ?= -Wall -Wextra -g -O0
 CFLAGS   ?= -Wall -Wextra
 LDLIBS   += $(PKG_LIBS)
 
-all: $(BUILD)/reglyph
 
-release: CXXFLAGS := -Wall -Wextra -O3 -DNDEBUG
-release: clean all
+all: debug
 
-$(BUILD):
-	mkdir -p $@
+debug:
+	$(MAKE) CXXFLAGS="-Wall -Wextra -g -O0" build
 
-$(BUILD)/gl.o: $(GLAD_SRC) | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
-
-$(BUILD)/main.o: $(ROOT)main.cpp | $(BUILD)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
-
-$(BUILD)/reglyph: $(BUILD)/main.o $(BUILD)/gl.o
-	$(CXX) $^ $(LDFLAGS) $(LDLIBS) -o $@
-
-clean:
-	rm -rf $(BUILD)
-
+release:
+	$(MAKE) CXXFLAGS="-Wall -Wextra -O3 -DNDEBUG" build
+# FUCK CHATGPT FOR CHANGING THE OUTPUT PATH 2 MFCKING TIMES
+# going back to ./reglyph XD
+# lesson: don't rely on chatgpt without looking at his shit under a microscope
+build:
+	@mkdir -p $(BUILD)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) \
+		main.cpp ../external/glad/src/gl.c \
+		$(LDFLAGS) $(LDLIBS) \
+		-o $(ROOT)/reglyph
