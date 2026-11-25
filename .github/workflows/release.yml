@@ -24,7 +24,9 @@ jobs:
           - distro: debian
             container: debian:stable
             package_cmd: |
-              apt-get update apt-get install -y build-essential pkg-config libglfw3-dev libfreetype-dev
+              apt-get update 
+              apt-get install -y build-essential pkg-config libglfw3-dev libfreetype-dev
+
 
           - distro: fedora
             container: fedora:latest
