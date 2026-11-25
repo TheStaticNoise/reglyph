@@ -26,7 +26,12 @@ jobs:
             package_cmd: |
               apt-get update 
               apt-get install -y build-essential pkg-config libglfw3-dev libfreetype-dev
-
+          - distro: ubuntu
+            container: ubuntu:24.04
+            package_cmd: |
+              apt update
+              apt upgrade
+              apt install -y build-essential pkg-config libglfw3-dev libfreetype-dev
 
           - distro: fedora
             container: fedora:latest
