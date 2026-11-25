@@ -39,3 +39,50 @@ jobs:
             container: fedora:latest
             package_cmd: |
               dnf install -y gcc-c++ make glfw-devel freetype-devel
+
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: ${{ matrix.package_cmd }}
+
+      - name: Compile
+        run: make -C src
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          tar -czf dist/reglyph-${GITHUB_REF_NAME}-${{ matrix.distro }}-x86_64.tar.gz \
+            -C src reglyph
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reglyph-${{ matrix.distro }}
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
