@@ -76,7 +76,9 @@ args_proc bitmask_argp(std::vector<std::string> args) {
 
 
   for (uint64_t i = 0; i < args.size(); i++) {
-    if (args[i].starts_with("--")) {
+    int argsize = 0;
+    while (args[i][argsize]) argsize++;
+    if (argsize >= 2 && args[i][0] == '-' && args[i][1] == '-') {
       // long
       auto e = args_vocab.find(args[i].substr(2));
       if (e!=args_vocab.end()) {
