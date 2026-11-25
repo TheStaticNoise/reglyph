@@ -19,6 +19,7 @@
 #include <freetype2/ft2build.h>
 #include "uiUtilz.h"
 #include "editor.h"
+#include "font_data.h"
 #define WINDOW_HEIGHT 400
 #define WINDOW_WIDTH 600
 
@@ -220,7 +221,7 @@ int main(int argc, char** argv) {
       glViewport(0, 0, width, height);
       });
   try {
-    render.load_fontObj("fonts/JetBrainsMono-SemiBold.ttf", 16);
+    render.load_fontObj(fonts_JetBrainsMono_Bold_ttf, fonts_JetBrainsMono_Bold_ttf_len, 16);
   } catch (std::exception& e){
     std::cerr << "font load err!" << e.what() << "\n";
     abort();

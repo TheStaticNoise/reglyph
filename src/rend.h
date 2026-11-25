@@ -436,6 +436,14 @@ namespace rg::rend {
           throw e; // cascade
         }
       }
+      inline uint64_t load_fontObj(unsigned char* data, unsigned int len, uint64_t fontsize) {
+        try {
+          fonts.emplace_back(rg::glyph::glyphManager(data, len, fontsize));
+          return fonts.size()-1;
+        } catch (std::exception& e) {
+          throw; // cascade
+        }
+      }
       inline int64_t get_fontwidth(int64_t id) {
         return fonts[id].get_adv();
       }

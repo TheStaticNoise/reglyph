@@ -17,7 +17,6 @@
 #include "rend.h"
 #include <harfbuzz/hb.h>
 #include <harfbuzz/hb-ft.h>
-
 #include FT_FREETYPE_H
 
 
@@ -32,6 +31,7 @@ namespace rg::glyph {
   int ascii_start = 32;
   int ascii_end = 126;
   int ascii_count = ascii_end - ascii_start + 1;
+
   class glyphManager {
     private:
       std::unordered_map<int, Character> charmap;
@@ -84,7 +84,7 @@ namespace rg::glyph {
           copy_glyph(atlas, glyph->bitmap.buffer, gw*gc, glyph_start, glyph->bitmap.width, glyph->bitmap.rows, glyph->bitmap_top);
           //    rg::rend::vec2<int> atlas_pos, size, bearings;
           charmap.emplace(i, Character{{glyph_start, 0}, {glyph->bitmap.width, ascent + descent}, {glyph->advance.x, 0}});// bearings are not populated;
-          
+
         }
       }
     public:
@@ -105,6 +105,41 @@ namespace rg::glyph {
         // even C is easier to write
         // in mean of reading a file
         // loaded the font file into our shitty class
+        try {
+          create_atlas(face, ascii_start, ascii_end, fontsize);
+        } catch (std::exception& e) {
+          throw e; // cascade exception
+        }
+        glGenTextures(1, &atlas_gl);
+        glBindTexture(GL_TEXTURE_2D, atlas_gl);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_R8,
+            atlas_width,
+            atlas_height,
+            0,
+            GL_RED,
+            GL_UNSIGNED_BYTE,
+            atlas.data()
+            );
+      }
+      glyphManager(unsigned char* data, unsigned int data_size, int64_t fontsize) {
+        if (FT_Init_FreeType(&ft)) throw std::runtime_error("ft init err");
+        FT_Face face;
+        if (FT_New_Memory_Face(ft,
+              data,
+              (FT_Long)data_size,
+              0, &face)) {
+          throw std::runtime_error("font bad ttf");
+        }
         try {
           create_atlas(face, ascii_start, ascii_end, fontsize);
         } catch (std::exception& e) {

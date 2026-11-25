@@ -1,7 +1,8 @@
 # reglyph
 
-## what it is?
+![Hello, reglyph!](src/hello_reglyph.png)
 
+## what it is?
 a small, GUI-based editor, focused on simplicity
 
 ### why?
@@ -63,6 +64,12 @@ those are known quirks:
 - ascii only
 - a bit imprecise gutter
 - no saving/loading
+
+## AI usage disclosure
+
+as per YSWS requirements, here's the AI disclosure:
+AI was used for information, parts of implementation, and debugging, 
+but, most of the implementation was hand written.
 
 ## license
 
