@@ -244,20 +244,19 @@ int main(int argc, char** argv) {
       });
   // delete: bool deletechar = true;
 
-glfwSetKeyCallback(window, [](GLFWwindow*, int key, int, int action, int) {
-  if (action != GLFW_PRESS && action != GLFW_REPEAT) return;
-  if (key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER) {
-    pending_input.push_back('\n');
-    layout_dirty = true;
-  } else if (key == GLFW_KEY_BACKSPACE) {
-    pending_input.push_back('\b');
-    layout_dirty = true;
-  }
-});
+  glfwSetKeyCallback(window, [](GLFWwindow*, int key, int, int action, int) {
+    if (action != GLFW_PRESS && action != GLFW_REPEAT) return;
+    if (key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER) {
+      pending_input.push_back('\n');
+      layout_dirty = true;
+    } else if (key == GLFW_KEY_BACKSPACE) {
+      pending_input.push_back('\b');
+      layout_dirty = true;
+    }
+  });
 
   manager.set_editorlabel("editor");
-  manager.editor.insert("hello, ", true);   // optional, delete if you don't want the starter text
-                                            // delete: std::cout << manager.editor.readline();
+
 
   while (!glfwWindowShouldClose(window)) {
 if (!pending_input.empty()) {
