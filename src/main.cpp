@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <optional>
+#include <sys/types.h>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <cstdlib>
@@ -58,9 +59,10 @@ enum class action: uint8_t {
   move_left,
   move_right,
   move_up,
-  move_down
+  move_down,
+  last
 };
-
+std::array<double, static_cast<ssize_t>(action::last)> move_brakes;
 action wait_act = action::none;
 
 enum class arg_bit: uint16_t {
@@ -140,6 +142,9 @@ args_proc bitmask_argp(std::vector<std::string> args) {
 bool backspace = false;
 
 int main(int argc, char** argv) {
+  for (int i = 0; i < move_brakes.size(); i++) {
+    move_brakes[i] = 0.0;
+  }
   auto abort = []() {
     std::cerr << "[reglyph]> Aborting...\n";
     std::abort();
@@ -260,19 +265,19 @@ int main(int argc, char** argv) {
   // delete: bool deletechar = true;
 
   glfwSetKeyCallback(window, [](GLFWwindow*, int key, int, int action, int) {
-    if (action != GLFW_PRESS && action != GLFW_REPEAT) return;
-    if (key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER) {
+      if (action != GLFW_PRESS && action != GLFW_REPEAT) return;
+      if (key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER) {
       pending_input.push_back('\n');
       layout_dirty = true;
-    } else if (key == GLFW_KEY_BACKSPACE) {
+      } else if (key == GLFW_KEY_BACKSPACE) {
       pending_input.push_back('\b');
       layout_dirty = true;
-    } else if (key == GLFW_KEY_LEFT) {
+      } else if (key == GLFW_KEY_LEFT) {
       wait_act = action::move_left;
-    } else if (key == GLFW_KEY_RIGHT) {
+      } else if (key == GLFW_KEY_RIGHT) {
       wait_act = action::move_right;
-    }
-  });
+      }
+      });
 
   manager.set_editorlabel("editor");
 
@@ -298,20 +303,23 @@ int main(int argc, char** argv) {
       glfwSwapBuffers(window);
     }
     if (wait_act != action::none) {
-      switch (wait_act) {
-        case action::move_left:
-          manager.editor.move_ptr(-1);
-          manager.set_blink();
-          break;
-        case action::move_right: 
-          manager.editor.move_ptr(1);
-          manager.set_blink();
-          break;
-        default:
-          break;
+      if (glfwGetTime() > move_brakes[static_cast<ssize_t>(wait_act)] + 0.060) {
+        switch (wait_act) {
+          case action::move_left:
+            manager.editor.move_ptr(-1);
+            manager.set_blink();
+            move_brakes[static_cast<ssize_t>(action::move_left)] = glfwGetTime();
+            break;
+          case action::move_right: 
+            manager.editor.move_ptr(1);
+            manager.set_blink();
+            move_brakes[static_cast<ssize_t>(action::move_left)] = glfwGetTime();
+            break;
+          default:
+            break;
+        }
+        wait_act = action::none;
       }
-
-      wait_act = action::none;
     }
     glfwWaitEventsTimeout(0.01);
   }

@@ -14,14 +14,15 @@ In between a text editor and an IDE, smaller than VS Code, but more than sublime
 
 ## status
 
-currently v0.0.6:
+currently v0.0.7:
 - able to parse args/file names (args only, doesn't open files)
 - able to create a window
 - able to draw rectangles 
 - primitive layout
 - Text!
 - basic input!
-- append only editing
+- basic editing
+- cursor
 
 ## planned:
 
@@ -31,12 +32,15 @@ currently v0.0.6:
 - simple extension platform
 - simple lsp support
 - word wrap
+- copy and paste
 - save and load
 
 ## run
 
 ### download:
 go to releases, download .tar.gz for your distro, extract, run
+(warning! Ubuntu is unstable, cuz of ZINK acting up on ubuntu,
+you may not be able to use reglyph!)
 
 ### compile
 #### reqs

@@ -29,6 +29,7 @@ namespace rg::editor {
       uint64_t rdindx = 0;
       inline void gen_snapshot() {
         auto& ac = buffers[active];
+        if (ac.snapshot_valid) return;
         ac.snapshot = ac.original;
         for (auto& edit : ac.edits) {
           size_t at = std::min<size_t>(edit.index, ac.snapshot.size());
@@ -37,7 +38,9 @@ namespace rg::editor {
           else if (edit.kind == kind_t::Delete)
             ac.snapshot.erase(at, edit.text.size());   // erase clamps the count, so it can't throw
         }
-      }    public:
+        ac.snapshot_valid = true;
+      }    
+    public:
       enum class action {left, right};
       Instance(rg::rend::rend_obj& r) : rend(r) {buffers.push_back({"", {}});}
       void set_parent(rg::rend::rect r) {parent = r;}
