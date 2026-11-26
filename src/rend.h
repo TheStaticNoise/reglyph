@@ -374,7 +374,7 @@ namespace rg::rend {
               vertices.push_back({b[0], b[1], ab[0], ab[1]});
               vertices.push_back({d[0], d[1], ad[0], ad[1]});
               vertices.push_back({c[0], c[1], ac[0], ac[1]});
-              textpos+=glyphd.advance[0] >> 6;
+              textpos+=(glyphd.advance[0] >> 6);
             }
             // submit
             if (!vertices.empty()) {
@@ -427,6 +427,16 @@ namespace rg::rend {
       }
       inline void clear() {
         for (auto& l : objects) l.clear();
+      }
+      inline int64_t str_glyphxlen(std::string str, int64_t fontid) {
+        auto& head = fonts[fontid];
+        int64_t ctn = 0;
+        for (auto& chr : str) {
+          auto data = head.get_glyph(chr);
+          if (!data.has_value()) continue;
+          ctn += data.value().advance[0] >> 6;
+        }
+        return ctn;
       }
       inline uint64_t load_fontObj(const char* path, uint64_t fontsize) {
         try {

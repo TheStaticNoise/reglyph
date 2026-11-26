@@ -22,6 +22,8 @@
 #include "font_data.h"
 #define WINDOW_HEIGHT 400
 #define WINDOW_WIDTH 600
+#define DRAWTEST_INTERVAL 0.25
+
 
 constexpr std::array<uint16_t, 3> ver = {0, 0, 6};
 
@@ -50,6 +52,16 @@ bool layout_dirty = true;
 // 6. file streaming (optional)
 // desc:
 
+
+enum class action: uint8_t {
+  none, 
+  move_left,
+  move_right,
+  move_up,
+  move_down
+};
+
+action wait_act = action::none;
 
 enum class arg_bit: uint16_t {
   help, version, kill_after_write, readonly, debug 
@@ -255,6 +267,10 @@ int main(int argc, char** argv) {
     } else if (key == GLFW_KEY_BACKSPACE) {
       pending_input.push_back('\b');
       layout_dirty = true;
+    } else if (key == GLFW_KEY_LEFT) {
+      wait_act = action::move_left;
+    } else if (key == GLFW_KEY_RIGHT) {
+      wait_act = action::move_right;
     }
   });
 
@@ -262,13 +278,13 @@ int main(int argc, char** argv) {
 
 
   while (!glfwWindowShouldClose(window)) {
-if (!pending_input.empty()) {
-  for (char c : pending_input) {
-    if (c == '\b') manager.editor.backspace();
-    else           manager.editor.insert(std::string(1, c), true);
-  }
-  pending_input.clear();
-}
+    if (!pending_input.empty()) {
+      for (char c : pending_input) {
+        if (c == '\b') manager.editor.backspace();
+        else           manager.editor.insert(std::string(1, c), true);
+      }
+      pending_input.clear();
+    }
     if (layout_dirty) {
       glfwGetWindowSize(window, &x, &y);
       manager.set_screensize({x, y});
@@ -277,7 +293,27 @@ if (!pending_input.empty()) {
       glfwSwapBuffers(window);
       layout_dirty = false;
     }
-    glfwWaitEvents();
+    if (manager.drawtest(0.099)) {
+      manager.publish();
+      glfwSwapBuffers(window);
+    }
+    if (wait_act != action::none) {
+      switch (wait_act) {
+        case action::move_left:
+          manager.editor.move_ptr(-1);
+          manager.set_blink();
+          break;
+        case action::move_right: 
+          manager.editor.move_ptr(1);
+          manager.set_blink();
+          break;
+        default:
+          break;
+      }
+
+      wait_act = action::none;
+    }
+    glfwWaitEventsTimeout(0.01);
   }
   std::cerr << "[reglyph]! Bye!\n" << std::flush;
   glfwDestroyWindow(window);

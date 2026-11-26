@@ -86,12 +86,18 @@ namespace rg::editor {
         index = where - range.size();      
       }
       void return_carriage() {rdindx = 0; gen_snapshot();}
-      std::string readline() {
+
+      std::string readline(bool& indxline, int64_t& indx_offset) {
         gen_snapshot();
+        indxline = false;
         auto &ac = buffers[active];
         int64_t st = rdindx;
         for (; rdindx < ac.snapshot.size() && ac.snapshot[rdindx] != '\n'; rdindx++);
         rdindx++;
+        if (index >= st && index < rdindx) {
+          indxline = true;
+          indx_offset = index - st;
+        }
         return ac.snapshot.substr(st, rdindx - st);
       }
       void backspace() {
@@ -113,6 +119,15 @@ namespace rg::editor {
         ac.edits.push_back({index - 1, kind_t::Delete, std::string(1, ac.snapshot[index - 1])});
         index--;
       }
+      inline void move_ptr(int64_t off) {
+        gen_snapshot();
+        int temp = index;
+        auto& ac = buffers[active];
+        if (temp + off >= 0 && temp + off <= ac.snapshot.size()) {
+          index += off;
+        }
+      }
+      inline int64_t get_index() {return index;}
       inline bool is_eof() { return rdindx >= buffers[active].snapshot.size(); }
   };
 }

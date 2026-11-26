@@ -9,6 +9,7 @@
  */
 #include "vecx.h"
 #include "freetype/fttypes.h"
+#include <GLFW/glfw3.h>
 #include <cstring>
 #include <exception>
 #include <ft2build.h>
@@ -55,10 +56,13 @@ namespace rg::uiUtilz {
       rg::rend::rend_obj& Render;
       rg::segs::splitter split;
       std::string editorlb;
-      int64_t editor_fontid;
-      int64_t misc_font;
+      int64_t editor_fontid = -1;
+      int64_t misc_font = -1;
       bool editor_lines = true;
       int64_t editor_layer = 2;
+      double lastblink = 0.0;
+      bool blink = false;
+      double last_render = 0.0;
       struct header {
         std::vector<element> elements;
         std::vector<widget> widgets;
@@ -69,6 +73,7 @@ namespace rg::uiUtilz {
       Instance(rg::rend::rend_obj& rend, int64_t editorfont, int64_t miscfont, rg::rend::vec2<int64_t> screensize) : Render(rend), editor(rend), editor_fontid(editorfont), misc_font(miscfont) {
         Render.set_screensize(screensize);
         split.screensize(screensize);
+        lastblink = glfwGetTime();
       }
       void scrap() {for (auto& vector : elements) {vector.elements.clear();vector.widgets.clear();}}
       void add_element(int64_t layer, element et) {if (layer < RG_SEGS_LAYERS) {elements[layer].elements.push_back(et);}}
@@ -98,24 +103,37 @@ namespace rg::uiUtilz {
         editor.return_carriage();
 
         while (!editor.is_eof() && y + line_h <= bottom) {
-          std::string text  = editor.readline();
+          bool is_indx = false;
+          int64_t collumn = 0;
+          std::string text  = editor.readline(is_indx, collumn);
           if (!text.empty() && text.back() == '\n') text.pop_back();
           std::string label = "[" + std::to_string(line_no) + "]";
           Render.add_text(
-            {parent->pos[0] + gutter - (int64_t)(label.size() + 1) * fw, y},
-            editor_fontid, label, editor_layer);
+              {parent->pos[0] + gutter - (int64_t)(label.size() + 1) * fw, y},
+              editor_fontid, label, editor_layer);
+          if (is_indx && blink) {
+            std::string sub = text.substr(0, collumn);
+            auto len = Render.str_glyphxlen(sub, editor_fontid);
+            Render.add_rect({parent->pos[0] + gutter + len, y}, {2, line_h}, 
+                {1.0f, 1.0f, 1.0f, 1.0f}, editor_layer+1);
+          }
           Render.add_text({parent->pos[0] + gutter, y}, editor_fontid, text, editor_layer);
           y += line_h;
           line_no++;
         }
         std::string label = "[" + std::to_string(line_no) + "]";
         Render.add_text(
-          {parent->pos[0] + gutter - (int64_t)(label.size() + 1) * fw, y},
-          editor_fontid, label, editor_layer);
+            {parent->pos[0] + gutter - (int64_t)(label.size() + 1) * fw, y},
+            editor_fontid, label, editor_layer);
         y += line_h;
       }
 
       void publish() {
+        double now = glfwGetTime();
+        if (now >= lastblink + 0.5) {
+          blink = !blink;
+          lastblink = glfwGetTime();
+        }
         Render.clear();
         split.scrap();
         uint64_t i = 0;
@@ -129,6 +147,19 @@ namespace rg::uiUtilz {
         }
         update_editor();  
         Render.submit();
-      }  };
+      }  
+      bool drawtest(double interval) {
+        double now = glfwGetTime();
+        if (now >= last_render + interval) {
+          last_render = now;
+          return true;
+        }
+        return false;
+      }
+      void set_blink() {
+        lastblink = glfwGetTime();
+        blink = true;
+      }
+  };
 }
 
